@@ -14,6 +14,8 @@ struct student
 	int id;
 	int age;
 	student* next;
+	int studytime;
+	string score;
 };
 
 struct student* head;
@@ -77,6 +79,13 @@ struct student* record::Insertstu(struct student* h)
 	cin >> p1->sex;
 	cout << "请输入学生的年龄：";
 	cin >> p1->age;
+	if(primission=="老师")
+	{
+		cout << "请输入学生的学习时间：";
+		cin >> p1->studytime;
+		cout << "请输入学生的成绩：";
+		cin >> p1->score;
+	}
 	p1->next = NULL;
 	if (h == NULL || p1->id < h->id)
 	{
@@ -299,7 +308,7 @@ void record::SaveRecordFile(struct student* h)
 	cout << "\n学号\t姓名\t专业\t班级\t性别\t年龄\n";
 	while (h != NULL)
 	{
-		ofile << '\n' << h->name << '\t' << h->id << '\t' << h->age << '\t' << h->sex << h->major << '\t' << h->classes;
+		ofile << '\n' << h->name << '\t' << h->id << '\t' << h->age << '\t' << h->sex << h->major << '\t' << h->classes<<'\t'<< h->studytime << '\t' << h->score;
 		p = h;
 		h = h->next;
 		delete p;
@@ -324,7 +333,7 @@ struct student* record::LoadRecordFile(struct student* h)
 	{
 		student_num++;
 		p = new student;
-		ifile >> p->id >> p->name >> p->major >> p->classes >> p->sex >> p->age; //
+		ifile >> p->id >> p->name >> p->major >> p->classes >> p->sex >> p->age >> p->studytime >> p->score; 
 		p->next = NULL;
 		if (h == NULL)
 		{

@@ -4,6 +4,9 @@
 #include<string>
 #include<fstream>
 #include<stack>
+#include<unordered_map>
+#include<iomanip>
+#include<ctime>
 using namespace std;
 
 struct student
@@ -43,7 +46,7 @@ public:
     void ClearList(struct student*& h);	//删除所有节点并将头指针置空，保留空链表状态
     int GetCount(struct student* h);	//获取当前链表中的学生总数
     bool IsIdExist(struct student* h, int id);	//检查学号是否已存在，用于插入时保证唯一性
-    void FindByNameFuzzy(struct student* h, const string& keyword);	//模糊姓名查找，显示所有姓名包含关键字的记录
+    void FindByNameKMP(struct student* h, const string& keyword);	//模糊姓名查找，显示所有姓名包含关键字词的学生信息
     void PrintPage(struct student* h, int pageSize, int pageNum);	//分页显示学生信息，避免数据过多刷屏
     void ShowSummary(struct student* h);	//显示汇总信息：总人数、各专业/班级人数分布、男女比例等
     struct student* AppendFromFile(struct student* h, const string& filename);	//从文件追加记录，不覆盖现有数据
@@ -52,7 +55,6 @@ public:
     struct student* Restore(const string& backupFile);	//从备份文件恢复数据
     struct student* Reverse(struct student* h);	//反转整个链表，便于按插入逆序查看
     struct student* RemoveDuplicates(struct student* h);	//删除学号重复的节点（保留第一个）
-    void Undo();	//（需维护操作栈）撤销最近一次增/删/改操作
     struct student* DeleteByCondition(struct student* h);	//根据指定条件批量删除学生信息
 
 	record()
@@ -75,6 +77,13 @@ public:
 	private:
 		string primission;
 };
+
+//初始化空链表，返回 NULL 或头结点
+struct student* record::InitList()
+{
+	student*h=NULL;
+	return h;
+}
 
 //插入学生信息，按学号升序插入
 struct student* record::Insertstu(struct student* h)
@@ -100,6 +109,12 @@ struct student* record::Insertstu(struct student* h)
 		cin >> p1->studytime;
 		cout << "请输入学生的成绩：";
 		cin >> p1->score;
+	}
+	if(IsIdExist(h,p1->id))
+	{
+		cout<<"学号已存在，插入失败\n";
+		delete p1;
+		return h;
 	}
 	p1->next = NULL;
 	if (h == NULL || p1->id < h->id)
@@ -615,9 +630,446 @@ void record::DestroyList(struct student* h) {
     }
 }
 
+//删除所有节点并将头指针置空，保留空链表状态
 void record::ClearList(struct student*& h)
 {
 	DestroyList(h);
 	h=NULL;
 	student_num=0;
+}
+
+//获取当前链表中的学生总数
+int record::GetCount(struct student* h)
+{
+	return student_num;
+}
+
+//检查学号是否已存在，用于插入时保证唯一性
+bool record::IsIdExist(struct student* h,int id)
+{
+	student* p=h;
+	while(p!=NULL)
+	{
+		if(p->id==id)
+		{
+			return true;
+		}
+		p=p->next;
+	}
+	return false;
+}
+
+//用KMP算法模糊姓名查找，显示所有姓名包含关键字词的学生信息
+void record::FindByNameKMP(struct student* h,const string& keyword)
+{
+	if(h==NULL)
+	{
+		cout<<"没有学生信息，无法查询\n";
+		return;
+	}
+	if(keyword.empty())
+	{
+		cout<<"请输入非空关键字\n";
+		return;
+	}
+	vector<int>next(keyword.size(),0);
+	for(int i=1,j=0;i<keyword.size();i++)
+	{
+		while(j>0&&keyword[i]!=keyword[j])
+		{
+			j=next[j-1];
+		}
+		if(keyword[i]==keyword[j])
+		{
+			j++;
+		}
+		next[i]=j;
+	}
+	student* p=h;
+	int count=0;
+	while(p!=NULL)
+	{
+		int i=0,j=0;
+		while(i<p->name.size()&&j<keyword.size())
+		{
+			if(p->name[i]==keyword[j])
+			{
+				i++,j++;
+			}
+			else if(j>0)
+			{
+				j=next[j-1];
+			}
+			else
+			{
+				i++;
+			}
+			if(j==keyword.size())
+			{
+				count++;
+				cout<<"\n学号："<<p->id<<"\t姓名："<<p->name<<"\t性别："<<p->sex<<"\t专业："<<p->major<<"\t班级："<<p->classes;
+				cout<<"\n学习时长:"<<p->studytime<<"\t成绩："<<p->score<<'\n';
+				break;
+			}
+		}
+		p=p->next;
+	}
+	if(count==0)
+	{
+		cout<<"没有找到姓名包含该关键字的学生\n";
+		return;
+	}
+	cout<<"总人数："<<count<<'\n';
+	return;
+}
+
+//分页显示学生信息，避免数据过多刷屏
+void record::PrintPage(struct student* h,int pageSize,int pageNum)
+{
+	if(h==NULL)
+	{
+		cout<<"没有学生信息，无法查询\n";
+		return;
+	}
+	int total=student_num;
+	int totalPages=(total+pageSize-1)/pageSize;
+	if(pageNum<1||pageNum>totalPages)
+	{
+		cout<<"页码错误，请输入1到"<<totalPages<<"之间的页码\n";
+		return;
+	}
+	int start=(pageNum-1)*pageSize;
+	int end=min(start+pageSize,total);
+	student* p=h;
+	for(int i=0;i<start&&p!=NULL;i++)
+	{
+		p=p->next;
+	}
+	for(int i=start;i<end&&p!=NULL;i++)
+	{
+		cout<<"\n学号："<<p->id<<"\t姓名："<<p->name<<"\t性别："<<p->sex<<"\t专业："<<p->major<<"\t班级："<<p->classes;
+		cout<<"\n学习时长:"<<p->studytime<<"\t成绩："<<p->score<<'\n';
+		p=p->next;
+	}
+	cout<<"当前页码："<<pageNum<<"/"<<totalPages<<"\t每页记录数："<<pageSize<<"\t总记录数："<<total<<'\n';
+	return;
+}
+
+//翻转整个链表，便于按插入逆序查看
+struct student* record::Reverse(struct student* h)
+{
+	student *prev=NULL,*next=h,*temp=NULL;
+	while(next!=NULL)
+	{
+		temp=next->next;
+		next->next=prev;
+		prev=next;
+		next=temp;
+	}
+	return prev;
+}
+
+//删除学号重复的节点（保留第一个）
+struct student* record::RemoveDuplicates(struct student* h)
+{
+	if(h==NULL)
+	{
+		return NULL;
+	}
+	student* p=h;
+	while(p->next!=NULL)
+	{
+		if(p->id==p->next->id)
+		{
+			student* temp=p->next;
+			p->next=p->next->next;
+			delete temp;
+			student_num--;
+		}
+		else
+		{
+			p=p->next;
+		}
+	}
+	return h;
+}
+
+//根据指定条件批量删除学生信息
+struct student* record::DeleteByCondition(struct student* h)
+{
+	if (primission == "学生") {
+		cout << "权限不足，无法删除学生信息\n";
+		return h;
+	}
+	if (h == NULL) {
+		cout << "没有学生信息，无法删除\n";
+		return h;
+	}
+
+	while (true) {
+		cout << "|-------------------------\n";
+		cout << "|请选择删除条件：\n";
+		cout << "|1.根据专业删除\n";
+		cout << "|2.根据班级删除\n";
+		cout << "|3.根据性别删除\n";
+		cout << "|4.根据年龄删除\n";
+		cout << "|0.退出\n";
+		cout << "|-------------------------\n";
+		int op = 0;
+		cin >> op;
+
+		if (op == 0) {
+			cout << "已经退出批量删除界面\n";
+			return h;
+		}
+		if (op < 1 || op > 4) {
+			cout << "错误指令，请重新输入\n";
+			continue;
+		}
+
+		// 获取要删除的关键字
+		string keyword;
+		int ageKeyword;
+		if (op == 1) {
+			cout << "请输入专业：";
+			cin >> keyword;
+		} else if (op == 2) {
+			cout << "请输入班级：";
+			cin >> keyword;
+		} else if (op == 3) {
+			cout << "请输入性别：";
+			cin >> keyword;
+		} else if (op == 4) {
+			cout << "请输入年龄：";
+			cin >> ageKeyword;
+		}
+
+		// 删除满足条件的节点
+		student* dummy = new student; // 哨兵节点简化边界情况
+		dummy->next = h;
+		student* p2 = dummy;//p2始终指向p1的前驱节点，初始为哨兵节点
+		student* p1 = h;//p1用于遍历链表，初始为头节点
+		int deleteCount = 0;
+
+		while (p1 != NULL) 
+		{
+			bool match = false;
+			if (op == 1 && p1->major == keyword) {
+				match = true;
+			} else if (op == 2 && p1->classes == keyword) {
+				match = true;
+			} else if(op == 3 && p1->sex == keyword) {
+				match = true;
+			} else if (op == 4 && p1->age == ageKeyword) {
+				match = true;
+			}
+		if (match)
+		{
+			student* temp = p1;
+			p2->next = p1->next;
+			p1 = p2->next;   // p1 前进到下一个有效节点
+			delete temp;
+			student_num--;
+			deleteCount++;
+		} else {
+			p2 = p1;
+			p1 = p1->next;
+		}
+			p1 = p1->next;
+		}
+		h = dummy->next;
+		delete dummy;
+		if (deleteCount == 0) {
+			cout << "没有找到满足条件的学生信息\n";
+		} else {
+			cout << "成功删除 " << deleteCount << " 条学生信息\n";
+		}
+	}
+}
+
+//显示汇总信息：总人数、各专业/班级人数分布、男女比例等
+void record::ShowSummary(struct student* h)
+{
+	if(h==NULL)
+	{
+		cout<<"没有学生信息，无法显示汇总\n";
+		return;
+	}
+	int total=student_num;
+	int maleCount=0,femaleCount=0;
+	unordered_map<string,int> majorCount;
+	unordered_map<string,int> classCount;
+	student* p=h;
+	while(p!=NULL)
+	{
+		if(p->sex=="男")
+		{
+			maleCount++;
+		}
+		else if(p->sex=="女")
+		{
+			femaleCount++;
+		}
+		majorCount[p->major]++;
+		classCount[p->classes]++;
+		p=p->next;
+	}
+	cout<<"总人数："<<total<<'\n';
+	cout<<"男女比例："<<maleCount<<":"<<femaleCount<<'\n';
+	cout<<"专业分布：\n";
+	for(const auto& pair : majorCount)
+	{
+		cout<<pair.first<<":"<<pair.second<<'\n';
+	}
+	cout<<"班级分布：\n";
+	for(const auto& pair : classCount)
+	{
+		cout<<pair.first<<":"<<pair.second<<'\n';
+	}
+	return;
+}
+
+//从文件追加记录，不覆盖现有数据
+struct student* record::AppendFromFile(struct student* h,const string& filename)
+{
+	ifstream ifile(filename);
+	if (!ifile) {
+		cout << "文件打开错误，无法读取\n";
+		return h;
+	}
+
+	student* tail = h;
+	if (tail != NULL) {
+		while (tail->next != NULL) {
+			tail = tail->next;
+		}
+	}
+
+	int id, age, studytime;
+	string name, sex, major, classes, score;
+	while (ifile >> id >> name >> sex >> age >> major >> classes >> studytime >> score) {
+		if (IsIdExist(h, id)) {
+			cout << "学号 " << id << " 已存在，跳过该记录\n";
+			continue;
+		}
+		student* newStu = new student;
+		student_num++;
+		newStu->id = id;
+		newStu->name = name;
+		newStu->sex = sex;
+		newStu->age = age;
+		newStu->major = major;
+		newStu->classes = classes;
+		newStu->studytime = studytime;
+		newStu->score = score;
+		if (tail == NULL) {
+			h = newStu;
+		} else {
+			tail->next = newStu;
+		}
+		tail = newStu;
+	}
+	ifile.close();
+	return h;
+}
+
+//导出为 CSV 文件，可用 Excel 打开
+void record::ExportToCSV(struct student* h,const string& filename)
+{
+	ofstream ofile(filename);
+	if (!ofile) {
+		cout << "文件打开错误，无法写入\n";
+		return;
+	}
+	ofile << "学号,姓名,性别,年龄,专业,班级,学习时间,成绩\n";
+	student* p = h;
+	while (p != NULL) {
+		ofile << p->id  << ',' << p->name << ',' << p->sex  << ',' << p->age
+			  << ',' << p->major << ',' << p->classes
+			  << ',' << p->studytime << ',' << p->score << '\n';
+		p = p->next;
+	}
+	ofile.close();
+	cout << "导出成功，文件名：" << filename << '\n';
+}
+
+//自动备份当前数据到带时间戳的文件
+void record::Backup(struct student* h) {
+    if (h == NULL) {
+        cout << "无数据可备份\n";
+        return;
+    }
+
+    time_t now = time(nullptr);
+    tm* local = localtime(&now);
+    char filename[100];
+    strftime(filename, sizeof(filename), "backup_%Y%m%d_%H%M%S.txt", local);
+
+    // 2. 写入文件（复用你已有的保存逻辑）
+    ofstream ofile(filename);
+    if (!ofile) {
+        cout << "备份文件创建失败\n";
+        return;
+    }
+
+    student* p = h;
+    while (p != NULL) {
+        ofile << p->id  << '\t' << p->name << '\t' << p->sex  << '\t' << p->age
+              << '\t' << p->major << '\t' << p->classes
+              << '\t' << p->studytime << '\t' << p->score << '\n';
+        p = p->next;
+    }
+    ofile.close();
+    cout << "备份成功，文件：" << filename << endl;
+}
+
+//从备份文件恢复数据
+struct student* record::Restore(const string& backupFile) {
+    // 1. 销毁当前链表，释放所有节点内存
+    DestroyList(head);
+    head = NULL;
+    student_num = 0;
+
+    // 2. 打开备份文件
+    ifstream ifile(backupFile);
+    if (!ifile) {
+        cout << "备份文件打开失败：" << backupFile << endl;
+        return NULL;
+    }
+
+    // 3. 读取数据并重建链表
+    student* tail = NULL;   // 尾指针，用于尾插法构建链表
+    int id, age, studytime;
+    string name, sex, major, classes, score;
+
+    while (ifile >> id >> name >> sex >> age >> major >> classes >> studytime >> score) {
+        student* newStu = new student;
+        newStu->id = id;
+        newStu->name = name;
+        newStu->sex = sex;
+        newStu->age = age;
+        newStu->major = major;
+        newStu->classes = classes;
+        newStu->studytime = studytime;
+        newStu->score = score;
+        newStu->next = NULL;
+
+        if (head == NULL) {
+            head = newStu;
+            tail = newStu;
+        } else {
+            tail->next = newStu;
+            tail = newStu;
+        }
+        student_num++;
+    }
+
+    ifile.close();
+
+    if (student_num == 0) {
+        cout << "备份文件中无有效记录\n";
+    } else {
+        cout << "恢复成功，共加载 " << student_num << " 条记录\n";
+    }
+    return head;
 }

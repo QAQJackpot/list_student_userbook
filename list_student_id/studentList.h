@@ -359,33 +359,7 @@ struct student* record::Changestu(struct student* h)
 }
 
 //用归并排序对信息排序
-struct student* record::Mergesort(struct student* h,int op)
-{
-	if(h==NULL||h->next==NULL)
-	{
-		return h;
-	}
-	student *slow,*fast;
-	slow=fast=h;
-	student* pre=NULL;
-	while(fast!=NULL&&fast->next!=NULL)
-	{
-		pre=slow;
-		fast=fast->next->next;
-		slow=slow->next;
-	}
-	if(pre!=NULL)
-	{
-		pre->next=NULL;
-	}
-	student* right=slow;
-	student* left=h;
-	left=Mergesort(left,op);
-	right=Mergesort(right,op);
-	return Merge(left,right,op);
-}
-
-//合并两个有序链表
+// 前向声明：合并两个有序链表（在后面定义）
 struct student* Merge(struct student* left,struct student* right,int op)
 {
 	student* dummy=new student;
@@ -421,6 +395,34 @@ struct student* Merge(struct student* left,struct student* right,int op)
 	delete dummy;
 	return head;
 }
+struct student* record::Mergesort(struct student* h,int op)
+{
+	if(h==NULL||h->next==NULL)
+	{
+		return h;
+	}
+	student *slow,*fast;
+	slow=fast=h;
+	student* pre=NULL;
+	while(fast!=NULL&&fast->next!=NULL)
+	{
+		pre=slow;
+		fast=fast->next->next;
+		slow=slow->next;
+	}
+	if(pre!=NULL)
+	{
+		pre->next=NULL;
+	}
+	student* right=slow;
+	student* left=h;
+	left=Mergesort(left,op);
+	right=Mergesort(right,op);
+	return Merge(left,right,op);
+}
+
+//合并两个有序链表
+
 
 //输出所有学生信息
 void record::Printall(struct student* h)

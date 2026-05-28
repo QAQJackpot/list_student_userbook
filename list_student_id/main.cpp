@@ -3,9 +3,9 @@
 using namespace std;
 
 int main() {
-    ios::sync_with_stdio(false);
-    cin.tie(nullptr);
-    cout.tie(nullptr);
+    //ios::sync_with_stdio(false);
+    //cin.tie(nullptr);
+    //cout.tie(nullptr);
 
     record manager; // 创建管理对象，构造时会询问权限
     manager.LoadRecordFile(); // 尝试加载已有数据文件
